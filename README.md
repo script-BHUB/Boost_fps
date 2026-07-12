@@ -15,7 +15,7 @@ pcall(function()
     ScreenGui.ResetOnSpawn = false
 end)
 
-MainFrame.Name = "FPSMainFrameV137"
+MainFrame.Name = "FPSMainFrameV138"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
 MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
@@ -213,9 +213,21 @@ UltraFastButton.MouseButton1Click:Connect(function()
         
         if setfpscap then pcall(function() setfpscap(360) end) end
         
+        if not originalStates[Lighting] then
+            originalStates[Lighting] = {
+                GlobalShadows = Lighting.GlobalShadows,
+                OutdoorAmbient = Lighting.OutdoorAmbient,
+                Ambient = Lighting.Ambient,
+                Brightness = Lighting.Brightness,
+                ClockTime = Lighting.ClockTime
+            }
+        end
+        
         Lighting.GlobalShadows = false
-        Lighting.OutdoorAmbient = Color3.fromRGB(140, 140, 140)
-        Lighting.Ambient = Color3.fromRGB(140, 140, 140)
+        Lighting.ClockTime = 0
+        Lighting.Brightness = 0.5
+        Lighting.OutdoorAmbient = Color3.fromRGB(45, 45, 50)
+        Lighting.Ambient = Color3.fromRGB(45, 45, 50)
         
         pcall(function()
             for _, effect in pairs(Lighting:GetChildren()) do
@@ -236,9 +248,17 @@ UltraFastButton.MouseButton1Click:Connect(function()
         
         if setfpscap then pcall(function() setfpscap(60) end) end
         
+        if originalStates[Lighting] then
+            Lighting.GlobalShadows = originalStates[Lighting].GlobalShadows
+            Lighting.OutdoorAmbient = originalStates[Lighting].OutdoorAmbient
+            Lighting.Ambient = originalStates[Lighting].Ambient
+            Lighting.Brightness = originalStates[Lighting].Brightness
+            Lighting.ClockTime = originalStates[Lighting].ClockTime
+        end
+        
         for obj, state in pairs(originalStates) do
             pcall(function()
-                if obj then
+                if obj and obj ~= Lighting then
                     if state.Parent then obj.Parent = state.Parent end
                     if state.Material then obj.Material = state.Material end
                     if state.CastShadow ~= nil then obj.CastShadow = state.CastShadow end
