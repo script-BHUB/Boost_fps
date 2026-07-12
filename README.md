@@ -15,7 +15,7 @@ pcall(function()
     ScreenGui.ResetOnSpawn = false
 end)
 
-MainFrame.Name = "FPSMainFrameV133"
+MainFrame.Name = "FPSMainFrameV135"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
 MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
@@ -80,6 +80,7 @@ local Lighting = game:GetService("Lighting")
 
 local originalStates = {}
 local isBladeBall = false
+local objectQueue = {}
 
 local function checkGameType()
     if workspace:FindFirstChild("Balls") or game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") or workspace:FindFirstChild("Alive") then
@@ -113,7 +114,7 @@ local function isEssentialObject(v)
     end
     
     local name = v.Name:lower()
-    if name:find("court") or name:find("net") or name:find("floor") or name:find("line") or name:find("spawn") then
+    if name:find("court") or name:find("net") or name:find("floor") or name:find("line") or name:find("spawn") or name:find("arena") or name:find("plate") or name:find("base") or name:find("ground") or name:find("stadium") then
         return true
     end
     
@@ -180,7 +181,7 @@ local function runDynamicStreaming()
         if (v:IsA("BasePart") or v:IsA("MeshPart")) and not isEssentialObject(v) then
             local distance = (v.Position - hrp.Position).Magnitude
             
-            if distance > 75 then
+            if distance > 150 then
                 if v.Parent ~= nil then
                     if not originalStates[v] then originalStates[v] = { Parent = v.Parent } end
                     v.Parent = nil
@@ -191,32 +192,50 @@ local function runDynamicStreaming()
                     pcall(processPart, v)
                 end
             end
+        elseif isEssentialObject(v) and v.Parent == nil then
+            if originalStates[v] and originalStates[v].Parent then
+                v.Parent = originalStates[v].Parent
+            end
         end
     end
 end
 
 local loopConnection = nil
 local streamingConnection = nil
+local queueConnection = nil
 
 local function startPurgeAndClayLoop()
     checkGameType()
     
-    for _, v in pairs(workspace:GetDescendants()) do
-        pcall(processPart, v)
+    local initialDescendants = workspace:GetDescendants()
+    for i = 1, #initialDescendants do
+        pcall(processPart, initialDescendants[i])
+        if i % 100 == 0 then task.wait() end
     end
     
     loopConnection = workspace.DescendantAdded:Connect(function(v)
         if isUltraFastEnabled then
-            task.spawn(function()
-                pcall(processPart, v)
-            end)
+            table.insert(objectQueue, v)
+        end
+    end)
+    
+    queueConnection = task.spawn(function()
+        while isUltraFastEnabled do
+            if #objectQueue > 0 then
+                local batchSize = math.min(#objectQueue, 30)
+                for i = 1, batchSize do
+                    local v = table.remove(objectQueue, 1)
+                    if v then pcall(processPart, v) end
+                end
+            end
+            task.wait(0.05)
         end
     end)
     
     streamingConnection = task.spawn(function()
         while isUltraFastEnabled do
             pcall(runDynamicStreaming)
-            task.wait(0.3)
+            task.wait(0.5)
         end
     end)
 end
@@ -279,6 +298,8 @@ UltraFastButton.MouseButton1Click:Connect(function()
         if setfpscap then pcall(function() setfpscap(60) end) end
         if loopConnection then loopConnection:Disconnect(); loopConnection = nil end
         if streamingConnection then streamingConnection = nil end
+        if queueConnection then queueConnection = nil end
+        objectQueue = {}
         
         for obj, state in pairs(originalStates) do
             pcall(function()
