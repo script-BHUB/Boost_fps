@@ -14,7 +14,7 @@ pcall(function()
     ScreenGui.ResetOnSpawn = false
 end)
 
-MainFrame.Name = "SupremeFPS_V160"
+MainFrame.Name = "SupremeFPS_V169"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
 MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
@@ -80,14 +80,22 @@ local original = {}
 
 local function optimizeCharacter(char)
     if not char or char == LP.Character then return end
-    for _, v in ipairs(char:GetDescendants()) do
-        if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") or v:IsA("Highlight") or v:IsA("Sparkles") or v:IsA("Fire") or v:IsA("Smoke") then
-            pcall(function() v:Destroy() end)
-        elseif v:IsA("BillboardGui") then
-            if not original[v] then original[v] = {Enabled = v.Enabled} end
-            v.Enabled = false
+    task.defer(function()
+        task.wait(1)
+        if not isEnabled or not char:IsDescendantOf(workspace) then return end
+        for _, v in ipairs(char:GetDescendants()) do
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") or v:IsA("Highlight") or v:IsA("Sparkles") or v:IsA("Fire") or v:IsA("Smoke") then
+                if not original[v] then original[v] = {Enabled = v.Enabled} end
+                v.Enabled = false
+            elseif v:IsA("BillboardGui") then
+                if not original[v] then original[v] = {Enabled = v.Enabled} end
+                v.Enabled = false
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                if not original[v] then original[v] = {Trans = v.Transparency} end
+                v.Transparency = 1
+            end
         end
-    end
+    end)
 end
 
 local function optimize(v)
@@ -102,39 +110,29 @@ local function optimize(v)
 
     if v:IsA("BasePart") or v:IsA("MeshPart") then
         if not original[v] then
-            original[v] = {Mat = v.Material, Col = v.Color, CanC = v.CanCollide, Shadow = v.CastShadow, Ref = v.Reflectance, Anc = v.Anchored}
+            original[v] = {Mat = v.Material, Col = v.Color, Shadow = v.CastShadow, Ref = v.Reflectance}
         end
         v.Material = Enum.Material.SmoothPlastic
         v.CastShadow = false
         v.Reflectance = 0
-    end
-
-    if v:IsA("Decal") or v:IsA("Texture") or v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") or v:IsA("Fire") or v:IsA("Smoke") then
-        pcall(function() v:Destroy() end)
+    elseif v:IsA("Sound") then
+        if not original[v] then original[v] = {Vol = v.Volume} end
+        v.Volume = 0
+    elseif v:IsA("Decal") or v:IsA("Texture") then
+        if not original[v] then original[v] = {Trans = v.Transparency} end
+        v.Transparency = 1
+    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") then
+        if not original[v] then original[v] = {Enabled = v.Enabled} end
+        v.Enabled = false
     end
 end
 
-local function updateDynamicPhysics()
-    if not isEnabled then return end
-    local char = LP.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    local hrpPos = hrp.Position
-
-    for part, data in pairs(original) do
-        if part and part.Parent and part:IsA("BasePart") and not part:IsDescendantOf(char) and not Players:GetPlayerFromCharacter(part.Parent) then
-            local dist = (part.Position - hrpPos).Magnitude
-            
-            if part.Size.X > 10 or part.Size.Y > 10 or part.Size.Z > 10 then
-                part.Anchored = data.Anc
-                part.CanCollide = data.CanC
-            else
-                if dist > 150 then
-                    part.Anchored = true
-                    part.CanCollide = false
-                else
-                    part.Anchored = data.Anc
-                    part.CanCollide = data.CanC
+local function toggleUIAnimations(state)
+    for _, gui in ipairs(LP.PlayerGui:GetChildren()) do
+        if gui ~= ScreenGui and gui:IsA("ScreenGui") then
+            for _, child in ipairs(gui:GetDescendants()) do
+                if child:IsA("TweenScript") or child.Name:lower():find("anim") then
+                    pcall(function() child.Disabled = not state end)
                 end
             end
         end
@@ -159,12 +157,6 @@ local function instantBoost()
         end
     end
     
-    for _, v in ipairs(Lighting:GetChildren()) do
-        if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Clouds") then
-            pcall(function() v:Destroy() end)
-        end
-    end
-    
     if not original[Lighting] then
         original[Lighting] = {
             GlobalShadows = Lighting.GlobalShadows,
@@ -179,7 +171,7 @@ local function instantBoost()
     Lighting.OutdoorAmbient = Color3.fromRGB(220, 220, 225)
     Lighting.Ambient = Color3.fromRGB(220, 220, 225)
     
-    updateDynamicPhysics()
+    toggleUIAnimations(false)
 end
 
 UltraFastButton.MouseButton1Click:Connect(function()
@@ -218,17 +210,21 @@ UltraFastButton.MouseButton1Click:Connect(function()
             Lighting.Brightness = original[Lighting].Brightness
         end
         
+        toggleUIAnimations(true)
+        
         for part, data in pairs(original) do
             pcall(function()
                 if part and part.Parent then
-                    if part:IsA("BillboardGui") then
+                    if part:IsA("BillboardGui") or part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Beam") or part:IsA("Fire") or part:IsA("Smoke") or part:IsA("Sparkles") then
                         part.Enabled = data.Enabled
+                    elseif part:IsA("Decal") or part:IsA("Texture") then
+                        part.Transparency = data.Trans
+                    elseif part:IsA("Sound") then
+                        part.Volume = data.Vol
                     elseif part ~= Lighting then
                         part.Material = data.Mat
-                        part.CanCollide = data.CanC
                         part.CastShadow = data.Shadow
                         part.Reflectance = data.Ref
-                        part.Anchored = data.Anc
                     end
                 end
             end)
@@ -240,7 +236,6 @@ end)
 local function setupPlayerConnection(player)
     player.CharacterAdded:Connect(function(char)
         if isEnabled then
-            task.wait(1)
             optimizeCharacter(char)
         end
     end)
@@ -277,15 +272,6 @@ task.spawn(function()
             end
         end
     end)
-end)
-
-task.spawn(function()
-    while true do
-        task.wait(3)
-        if isEnabled then
-            pcall(updateDynamicPhysics)
-        end
-    end
 end)
 
 task.spawn(function()
