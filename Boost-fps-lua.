@@ -14,7 +14,7 @@ pcall(function()
     ScreenGui.ResetOnSpawn = false
 end)
 
-MainFrame.Name = "SupremeFPS_V169"
+MainFrame.Name = "SupremeFPS_V181"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
 MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
@@ -77,60 +77,96 @@ local UIS = game:GetService("UserInputService")
 local SG = game:GetService("StarterGui")
 
 local original = {}
+local processedObjects = {}
 
 local function optimizeCharacter(char)
     if not char or char == LP.Character then return end
+    if processedObjects[char] then return end
+    processedObjects[char] = true
+    
     task.defer(function()
-        task.wait(1)
-        if not isEnabled or not char:IsDescendantOf(workspace) then return end
-        for _, v in ipairs(char:GetDescendants()) do
-            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") or v:IsA("Highlight") or v:IsA("Sparkles") or v:IsA("Fire") or v:IsA("Smoke") then
-                if not original[v] then original[v] = {Enabled = v.Enabled} end
-                v.Enabled = false
-            elseif v:IsA("BillboardGui") then
+        task.wait(0.2)
+        if not isEnabled or not char:IsDescendantOf(workspace) then 
+            processedObjects[char] = nil
+            return 
+        end
+        local descendants = char:GetDescendants()
+        for i = 1, #descendants do
+            local v = descendants[i]
+            if v:IsA("Accessory") or v:IsA("Shirt") or v:IsA("Pants") or v:IsA("ShirtGraphic") or v:IsA("FaceControls") then
+                if not original[v] then original[v] = {Parent = v.Parent} end
+                v.Parent = nil
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") or v:IsA("Highlight") or v:IsA("Sparkles") or v:IsA("Fire") or v:IsA("Smoke") then
                 if not original[v] then original[v] = {Enabled = v.Enabled} end
                 v.Enabled = false
             elseif v:IsA("Decal") or v:IsA("Texture") then
-                if not original[v] then original[v] = {Trans = v.Transparency} end
+                if not original[v] then original[v] = {Texture = v.Texture, Trans = v.Transparency} end
+                v.Texture = ""
                 v.Transparency = 1
+            elseif v:IsA("BasePart") or v:IsA("MeshPart") then
+                if not original[v] then original[v] = {Mat = v.Material, Shadow = v.CastShadow, Ref = v.Reflectance} end
+                v.Material = Enum.Material.SmoothPlastic
+                v.CastShadow = false
+                v.Reflectance = 0
+                if v:IsA("MeshPart") then
+                    if not original[v].MeshId then original[v].MeshId = v.MeshId end
+                    if not original[v].TextureId then original[v].TextureId = v.TextureId end
+                    v.TextureId = ""
+                end
+            elseif v:IsA("SpecialMesh") then
+                if not original[v] then original[v] = {TextureId = v.TextureId, MeshType = v.MeshType, MeshId = v.MeshId} end
+                v.TextureId = ""
+                v.MeshId = ""
+                v.MeshType = Enum.MeshType.Box
             end
         end
     end)
 end
 
 local function optimize(v)
-    if not v or not v:IsDescendantOf(workspace) then return end
+    if not v or processedObjects[v] then return end
+    processedObjects[v] = true
     
-    if v:IsA("Player") or (v.Parent and v.Parent:IsA("Model") and Players:GetPlayerFromCharacter(v.Parent)) then
-        if v.Parent and v.Parent:IsA("Model") then
-            optimizeCharacter(v.Parent)
-        end
-        return 
-    end
-
     if v:IsA("BasePart") or v:IsA("MeshPart") then
         if not original[v] then
-            original[v] = {Mat = v.Material, Col = v.Color, Shadow = v.CastShadow, Ref = v.Reflectance}
+            original[v] = {Mat = v.Material, Shadow = v.CastShadow, Ref = v.Reflectance}
         end
         v.Material = Enum.Material.SmoothPlastic
         v.CastShadow = false
         v.Reflectance = 0
+        
+        if v:IsA("MeshPart") then
+            if not original[v].MeshId then original[v].MeshId = v.MeshId end
+            if not original[v].TextureId then original[v].TextureId = v.TextureId end
+            v.TextureId = ""
+            v.MeshId = ""
+        end
+    elseif v:IsA("SpecialMesh") then
+        if not original[v] then original[v] = {TextureId = v.TextureId, MeshType = v.MeshType, MeshId = v.MeshId} end
+        v.TextureId = ""
+        v.MeshId = ""
+        v.MeshType = Enum.MeshType.Box
+    elseif v:IsA("Decal") or v:IsA("Texture") then
+        if not original[v] then original[v] = {Texture = v.Texture, Trans = v.Transparency} end
+        v.Texture = ""
+        v.Transparency = 1
+    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") or v:IsA("Light") then
+        if not original[v] then original[v] = {Enabled = v.Enabled} end
+        v.Enabled = false
     elseif v:IsA("Sound") then
         if not original[v] then original[v] = {Vol = v.Volume} end
         v.Volume = 0
-    elseif v:IsA("Decal") or v:IsA("Texture") then
-        if not original[v] then original[v] = {Trans = v.Transparency} end
-        v.Transparency = 1
-    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") then
-        if not original[v] then original[v] = {Enabled = v.Enabled} end
-        v.Enabled = false
     end
 end
 
 local function toggleUIAnimations(state)
-    for _, gui in ipairs(LP.PlayerGui:GetChildren()) do
+    local guis = LP.PlayerGui:GetChildren()
+    for i = 1, #guis do
+        local gui = guis[i]
         if gui ~= ScreenGui and gui:IsA("ScreenGui") then
-            for _, child in ipairs(gui:GetDescendants()) do
+            local children = gui:GetDescendants()
+            for j = 1, #children do
+                local child = children[j]
                 if child:IsA("TweenScript") or child.Name:lower():find("anim") then
                     pcall(function() child.Disabled = not state end)
                 end
@@ -145,13 +181,34 @@ local function instantBoost()
         workspace.Terrain.WaterWaveSpeed = 0
         workspace.Terrain.WaterReflectance = 0
         workspace.Terrain.WaterTransparency = 0
+        
+        local settings = settings()
+        settings.Rendering.QualityLevel = 1
+        settings.Network.IncomingReplicationLag = 0
+        
+        sethiddenproperty(workspace.ClientAnimatorThrottling, "Enabled", true)
+        sethiddenproperty(workspace, "InterpolationThrottling", "Default")
     end)
 
-    for _, v in ipairs(workspace:GetDescendants()) do
-        optimize(v)
-    end
+    local allObjects = workspace:GetDescendants()
+    local batchSize = 700
     
-    for _, player in ipairs(Players:GetPlayers()) do
+    task.spawn(function()
+        for i = 1, #allObjects do
+            if not isEnabled then break end
+            local obj = allObjects[i]
+            if obj.Parent and not (obj.Parent:IsA("Model") and Players:GetPlayerFromCharacter(obj.Parent)) then
+                optimize(obj)
+            end
+            if i % batchSize == 0 then
+                task.wait()
+            end
+        end
+    end)
+    
+    local allPlayers = Players:GetPlayers()
+    for i = 1, #allPlayers do
+        local player = allPlayers[i]
         if player.Character then
             optimizeCharacter(player.Character)
         end
@@ -162,14 +219,27 @@ local function instantBoost()
             GlobalShadows = Lighting.GlobalShadows,
             OutdoorAmbient = Lighting.OutdoorAmbient,
             Ambient = Lighting.Ambient,
-            Brightness = Lighting.Brightness
+            Brightness = Lighting.Brightness,
+            FogEnd = Lighting.FogEnd,
+            FogStart = Lighting.FogStart
         }
     end
     
     Lighting.GlobalShadows = false
-    Lighting.Brightness = 2.0
-    Lighting.OutdoorAmbient = Color3.fromRGB(220, 220, 225)
-    Lighting.Ambient = Color3.fromRGB(220, 220, 225)
+    Lighting.Brightness = 0
+    Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+    Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+    Lighting.FogStart = 0
+    Lighting.FogEnd = 999999
+    
+    local lightChildren = Lighting:GetChildren()
+    for i = 1, #lightChildren do
+        local v = lightChildren[i]
+        if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Clouds") or v:IsA("Sky") then
+            if not original[v] then original[v] = {Parent = v.Parent} end
+            v.Parent = nil
+        end
+    end
     
     toggleUIAnimations(false)
 end
@@ -183,14 +253,10 @@ UltraFastButton.MouseButton1Click:Connect(function()
         UltraFastButton.TextColor3 = TextColor_On
         UltraFastStroke.Color = Color3.fromRGB(0, 255, 180)
         StatLabel.Visible = true
-        
-        pcall(function()
-            SG:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, false)
-            SG:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
-        end)
-        
         instantBoost()
-        collectgarbage("collect")
+        task.spawn(function()
+            collectgarbage("collect")
+        end)
     else
         UltraFastButton.Text = "Boost FPS: Off"
         UltraFastButton.BackgroundColor3 = Color_Off
@@ -198,29 +264,39 @@ UltraFastButton.MouseButton1Click:Connect(function()
         UltraFastStroke.Color = Color3.fromRGB(50, 50, 60)
         StatLabel.Visible = false
         
-        pcall(function()
-            SG:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, true)
-            SG:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, true)
-        end)
-        
         if original[Lighting] then
             Lighting.GlobalShadows = original[Lighting].GlobalShadows
             Lighting.OutdoorAmbient = original[Lighting].OutdoorAmbient
             Lighting.Ambient = original[Lighting].Ambient
             Lighting.Brightness = original[Lighting].Brightness
+            Lighting.FogEnd = original[Lighting].FogEnd
+            Lighting.FogStart = original[Lighting].FogStart
         end
         
         toggleUIAnimations(true)
         
         for part, data in pairs(original) do
             pcall(function()
-                if part and part.Parent then
-                    if part:IsA("BillboardGui") or part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Beam") or part:IsA("Fire") or part:IsA("Smoke") or part:IsA("Sparkles") then
-                        part.Enabled = data.Enabled
-                    elseif part:IsA("Decal") or part:IsA("Texture") then
+                if part then
+                    if part:IsA("Decal") or part:IsA("Texture") then
+                        part.Texture = data.Texture
                         part.Transparency = data.Trans
+                    elseif part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Beam") or part:IsA("Fire") or part:IsA("Smoke") or part:IsA("Sparkles") or part:IsA("Light") then
+                        part.Enabled = data.Enabled
                     elseif part:IsA("Sound") then
                         part.Volume = data.Vol
+                    elseif part:IsA("PostEffect") or part:IsA("Atmosphere") or part:IsA("Clouds") or part:IsA("Accessory") or part:IsA("Shirt") or part:IsA("Pants") or part:IsA("ShirtGraphic") or part:IsA("Sky") or part:IsA("FaceControls") then
+                        part.Parent = data.Parent
+                    elseif part:IsA("SpecialMesh") then
+                        part.TextureId = data.TextureId
+                        part.MeshType = data.MeshType
+                        part.MeshId = data.MeshId
+                    elseif part:IsA("MeshPart") then
+                        part.Material = data.Mat
+                        part.CastShadow = data.Shadow
+                        part.Reflectance = data.Ref
+                        if data.TextureId then part.TextureId = data.TextureId end
+                        if data.MeshId then part.MeshId = data.MeshId end
                     elseif part ~= Lighting then
                         part.Material = data.Mat
                         part.CastShadow = data.Shadow
@@ -230,6 +306,7 @@ UltraFastButton.MouseButton1Click:Connect(function()
             end)
         end
         original = {}
+        processedObjects = {}
     end
 end)
 
@@ -276,17 +353,22 @@ end)
 
 task.spawn(function()
     while true do
-        task.wait(30)
+        task.wait(5)
         if isEnabled then
             pcall(function()
-                collectgarbage("collect")
-                local chatScroller = LP.PlayerGui:FindFirstChild("Chat") and LP.PlayerGui.Chat:FindFirstChild("Frame") and LP.PlayerGui.Chat.Frame:FindFirstChild("ChatChannelParentFrame")
-                if chatScroller then
-                    local chatLabels = chatScroller:GetDescendants()
-                    if #chatLabels > 50 then
-                        for i = 1, #chatLabels - 50 do
-                            if chatLabels[i]:IsA("TextLabel") then
-                                chatLabels[i]:Destroy()
+                collectgarbage("step", 200)
+                local myChar = LP.Character
+                if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+                    local myPos = myChar.HumanoidRootPart.Position
+                    local allParts = workspace:GetChildren()
+                    for i = 1, #allParts do
+                        local p = allParts[i]
+                        if p:IsA("BasePart") and not p.Anchored then
+                            local dist = (p.Position - myPos).Magnitude
+                            if dist > 150 then
+                                if not original[p] then original[p] = {Mat = p.Material, Shadow = p.CastShadow, Ref = p.Reflectance} end
+                                p.CastShadow = false
+                                p.Transparency = 1
                             end
                         end
                     end
