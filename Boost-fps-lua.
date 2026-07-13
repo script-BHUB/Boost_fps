@@ -15,7 +15,7 @@ pcall(function()
     ScreenGui.ResetOnSpawn = false
 end)
 
-MainFrame.Name = "FPSMainFrameV144"
+MainFrame.Name = "FPSMainFrameV145"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
 MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
@@ -78,6 +78,7 @@ local localPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 local StarterGui = game:GetService("StarterGui")
+local UserInputService = game:GetService("UserInputService")
 
 local originalStates = {}
 local isBladeBall = false
@@ -226,7 +227,7 @@ local function makeDraggable(frame)
         frame.InputChanged:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
         end)
-        game:GetService("UserInputService").InputChanged:Connect(function(input)
+        UserInputService.InputChanged:Connect(function(input)
             if input == dragInput and dragging then
                 local delta = input.Position - dragStart
                 frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
@@ -235,6 +236,14 @@ local function makeDraggable(frame)
     end)
 end
 makeDraggable(MainFrame)
+
+pcall(function()
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
+            MainFrame.Visible = not MainFrame.Visible
+        end
+    end)
+end)
 
 UltraFastButton.MouseButton1Click:Connect(function()
     isUltraFastEnabled = not isUltraFastEnabled
