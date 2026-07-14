@@ -14,7 +14,7 @@ pcall(function()
     ScreenGui.ResetOnSpawn = false
 end)
 
-MainFrame.Name = "SupremeFPS_V185"
+MainFrame.Name = "SupremeFPS_V186"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
 MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
@@ -77,73 +77,19 @@ local UIS = game:GetService("UserInputService")
 
 local original = {}
 local processedObjects = {}
-local workspaceConnection = nil
 
-local function isSpecialObject(v)
-    local name = v.Name:lower()
-    local parentName = (v.Parent and v.Parent.Name:lower()) or ""
-    if name:find("ball") or parentName:find("ball") or name:find("hitbox") or parentName:find("hitbox") or name:find("volley") or parentName:find("volley") then
-        return true
-    end
+local function isPlayerPart(v)
     for _, p in ipairs(Players:GetPlayers()) do
-        if p.Character and (v:IsDescendantOf(p.Character) or v == p.Character) then
+        if p.Character and v:IsDescendantOf(p.Character) then
             return true
         end
     end
     return false
 end
 
-local function optimizeCharacter(char)
-    if not char or char == LP.Character then return end
-    if processedObjects[char] then return end
-    processedObjects[char] = true
-    
-    task.defer(function()
-        task.wait(0.2)
-        if not isEnabled or not char:IsDescendantOf(workspace) then 
-            processedObjects[char] = nil
-            return 
-        end
-        local descendants = char:GetDescendants()
-        for i = 1, #descendants do
-            local v = descendants[i]
-            if v:IsA("Accessory") or v:IsA("Shirt") or v:IsA("Pants") or v:IsA("ShirtGraphic") or v:IsA("FaceControls") or v:IsA("BillboardGui") then
-                if not original[v] then original[v] = {Parent = v.Parent} end
-                v.Parent = nil
-            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") or v:IsA("Highlight") or v:IsA("Sparkles") or v:IsA("Fire") or v:IsA("Smoke") then
-                if not original[v] then original[v] = {Enabled = v.Enabled} end
-                v.Enabled = false
-            elseif v:IsA("Decal") or v:IsA("Texture") then
-                if not original[v] then original[v] = {Texture = v.Texture, Trans = v.Transparency} end
-                v.Texture = ""
-                v.Transparency = 1
-            elseif v:IsA("BasePart") or v:IsA("MeshPart") then
-                if not isSpecialObject(v) then
-                    if not original[v] then original[v] = {Mat = v.Material, Shadow = v.CastShadow, Ref = v.Reflectance} end
-                    v.Material = Enum.Material.SmoothPlastic
-                    v.CastShadow = false
-                    v.Reflectance = 0
-                    if v:IsA("MeshPart") then
-                        if not original[v].MeshId then original[v].MeshId = v.MeshId end
-                        if not original[v].TextureId then original[v].TextureId = v.TextureId end
-                        v.TextureId = ""
-                    end
-                end
-            elseif v:IsA("SpecialMesh") then
-                if not isSpecialObject(v) then
-                    if not original[v] then original[v] = {TextureId = v.TextureId, MeshType = v.MeshType, MeshId = v.MeshId} end
-                    v.TextureId = ""
-                    v.MeshId = ""
-                    v.MeshType = Enum.MeshType.Box
-                end
-            end
-        end
-    end)
-end
-
 local function optimize(v)
     if not v or processedObjects[v] then return end
-    if isSpecialObject(v) then return end
+    if isPlayerPart(v) then return end
     processedObjects[v] = true
     
     if v:IsA("BasePart") or v:IsA("MeshPart") then
@@ -153,23 +99,11 @@ local function optimize(v)
         v.Material = Enum.Material.SmoothPlastic
         v.CastShadow = false
         v.Reflectance = 0
-        
-        if v:IsA("MeshPart") then
-            if not original[v].MeshId then original[v].MeshId = v.MeshId end
-            if not original[v].TextureId then original[v].TextureId = v.TextureId end
-            v.TextureId = ""
-            v.MeshId = ""
-        end
-    elseif v:IsA("SpecialMesh") then
-        if not original[v] then original[v] = {TextureId = v.TextureId, MeshType = v.MeshType, MeshId = v.MeshId} end
-        v.TextureId = ""
-        v.MeshId = ""
-        v.MeshType = Enum.MeshType.Box
     elseif v:IsA("Decal") or v:IsA("Texture") then
         if not original[v] then original[v] = {Texture = v.Texture, Trans = v.Transparency} end
         v.Texture = ""
         v.Transparency = 1
-    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") or v:IsA("Light") or v:IsA("BillboardGui") then
+    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") or v:IsA("Light") then
         if not original[v] then original[v] = {Enabled = v.Enabled} end
         v.Enabled = false
     elseif v:IsA("Sound") then
@@ -194,22 +128,12 @@ local function instantBoost()
         for i = 1, #allObjects do
             if not isEnabled then break end
             local obj = allObjects[i]
-            if obj.Parent and not (obj.Parent:IsA("Model") and Players:GetPlayerFromCharacter(obj.Parent)) then
-                optimize(obj)
-            end
+            optimize(obj)
             if i % batchSize == 0 then
                 task.wait()
             end
         end
     end)
-    
-    local allPlayers = Players:GetPlayers()
-    for i = 1, #allPlayers do
-        local player = allPlayers[i]
-        if player.Character then
-            optimizeCharacter(player.Character)
-        end
-    end
     
     if not original[Lighting] then
         original[Lighting] = {
@@ -237,32 +161,6 @@ local function instantBoost()
             v.Parent = nil
         end
     end
-
-    workspaceConnection = workspace.DescendantAdded:Connect(function(v)
-        if isEnabled then
-            if isSpecialObject(v) then return end
-            
-            task.defer(function()
-                if v:IsA("BasePart") and not v.Anchored then
-                    local distToPlayer = 9999
-                    local myChar = LP.Character
-                    if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-                        distToPlayer = (v.Position - myChar.HumanoidRootPart.Position).Magnitude
-                    end
-                    
-                    if distToPlayer > 40 then
-                        v.Anchored = true
-                        v.CanCollide = false
-                    end
-                end
-                if v:IsA("Shirt") or v:IsA("Pants") or v:IsA("ShirtGraphic") or v:IsA("BillboardGui") then
-                    v.Parent = nil
-                else
-                    optimize(v)
-                end
-            end)
-        end
-    end)
 end
 
 UltraFastButton.MouseButton1Click:Connect(function()
@@ -285,11 +183,6 @@ UltraFastButton.MouseButton1Click:Connect(function()
         UltraFastStroke.Color = Color3.fromRGB(50, 50, 60)
         StatLabel.Visible = false
         
-        if workspaceConnection then
-            workspaceConnection:Disconnect()
-            workspaceConnection = nil
-        end
-        
         if original[Lighting] then
             Lighting.GlobalShadows = original[Lighting].GlobalShadows
             Lighting.OutdoorAmbient = original[Lighting].OutdoorAmbient
@@ -305,28 +198,16 @@ UltraFastButton.MouseButton1Click:Connect(function()
                     if part:IsA("Decal") or part:IsA("Texture") then
                         part.Texture = data.Texture
                         part.Transparency = data.Trans
-                    elseif part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Beam") or part:IsA("Fire") or part:IsA("Smoke") or part:IsA("Sparkles") or part:IsA("Light") or part:IsA("BillboardGui") then
+                    elseif part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Beam") or part:IsA("Fire") or part:IsA("Smoke") or part:IsA("Sparkles") or part:IsA("Light") then
                         part.Enabled = data.Enabled
                     elseif part:IsA("Sound") then
                         part.Volume = data.Vol
-                    elseif part:IsA("PostEffect") or part:IsA("Atmosphere") or part:IsA("Clouds") or part:IsA("Accessory") or part:IsA("Shirt") or part:IsA("Pants") or part:IsA("ShirtGraphic") or part:IsA("Sky") or part:IsA("FaceControls") then
+                    elseif part:IsA("PostEffect") or part:IsA("Atmosphere") or part:IsA("Clouds") or part:IsA("Sky") then
                         part.Parent = data.Parent
-                    elseif part:IsA("SpecialMesh") then
-                        part.TextureId = data.TextureId
-                        part.MeshType = data.MeshType
-                        part.MeshId = data.MeshId
-                    elseif part:IsA("MeshPart") then
-                        part.Material = data.Mat
-                        part.CastShadow = data.Shadow
-                        part.Reflectance = data.Ref
-                        if data.TextureId then part.TextureId = data.TextureId end
-                        if data.MeshId then part.MeshId = data.MeshId end
                     elseif part ~= Lighting then
                         part.Material = data.Mat
                         part.CastShadow = data.Shadow
                         part.Reflectance = data.Ref
-                        part.Anchored = data.Anchored or part.Anchored
-                        part.CanCollide = data.CanCollide or part.CanCollide
                     end
                 end
             end)
@@ -335,22 +216,6 @@ UltraFastButton.MouseButton1Click:Connect(function()
         processedObjects = {}
     end
 end)
-
-local function setupPlayerConnection(player)
-    player.CharacterAdded:Connect(function(char)
-        if isEnabled then
-            optimizeCharacter(char)
-        end
-    end)
-    if player.Character and isEnabled then
-        optimizeCharacter(player.Character)
-    end
-end
-
-for _, player in ipairs(Players:GetPlayers()) do
-    setupPlayerConnection(player)
-end
-Players.PlayerAdded:Connect(setupPlayerConnection)
 
 UIS.InputBegan:Connect(function(input, gpe)
     if not gpe and input.KeyCode == Enum.KeyCode.RightControl then
@@ -375,35 +240,6 @@ task.spawn(function()
             end
         end
     end)
-end)
-
-task.spawn(function()
-    while true do
-        task.wait(5)
-        if isEnabled then
-            pcall(function()
-                collectgarbage("step", 250)
-                local myChar = LP.Character
-                if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-                    local myPos = myChar.HumanoidRootPart.Position
-                    local allParts = workspace:GetChildren()
-                    for i = 1, #allParts do
-                        local p = allParts[i]
-                        if p:IsA("BasePart") and not p.Anchored then
-                            if not isSpecialObject(p) then
-                                local dist = (p.Position - myPos).Magnitude
-                                if dist > 150 then
-                                    if not original[p] then original[p] = {Mat = p.Material, Shadow = p.CastShadow, Ref = p.Reflectance, Anchored = p.Anchored, CanCollide = p.CanCollide} end
-                                    p.CastShadow = false
-                                    p.Transparency = 1
-                                end
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end
 end)
 
 pcall(function()
