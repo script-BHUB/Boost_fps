@@ -14,7 +14,7 @@ pcall(function()
     ScreenGui.ResetOnSpawn = false
 end)
 
-MainFrame.Name = "SupremeFPS_V186"
+MainFrame.Name = "SupremeFPS_V187"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
 MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
@@ -78,18 +78,30 @@ local UIS = game:GetService("UserInputService")
 local original = {}
 local processedObjects = {}
 
-local function isPlayerPart(v)
+local function isCriticalPart(v)
+    local name = v.Name:lower()
+    local parentName = (v.Parent and v.Parent.Name:lower()) or ""
+    
+    if name:find("ball") or parentName:find("ball") or name:find("hitbox") or parentName:find("hitbox") or name:find("volley") or parentName:find("volley") or name:find("net") then
+        return true
+    end
+    
     for _, p in ipairs(Players:GetPlayers()) do
-        if p.Character and v:IsDescendantOf(p.Character) then
+        if p.Character and (v:IsDescendantOf(p.Character) or v == p.Character) then
             return true
         end
     end
+    
+    if v:IsA("Attachment") or v:IsA("Constraint") or v:IsA("Motor6D") or v:IsA("Weld") then
+        return true
+    end
+    
     return false
 end
 
 local function optimize(v)
     if not v or processedObjects[v] then return end
-    if isPlayerPart(v) then return end
+    if isCriticalPart(v) then return end
     processedObjects[v] = true
     
     if v:IsA("BasePart") or v:IsA("MeshPart") then
@@ -106,9 +118,6 @@ local function optimize(v)
     elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") or v:IsA("Light") then
         if not original[v] then original[v] = {Enabled = v.Enabled} end
         v.Enabled = false
-    elseif v:IsA("Sound") then
-        if not original[v] then original[v] = {Vol = v.Volume} end
-        v.Volume = 0
     end
 end
 
@@ -122,13 +131,12 @@ local function instantBoost()
     end)
 
     local allObjects = workspace:GetDescendants()
-    local batchSize = 700
+    local batchSize = 1000
     
     task.spawn(function()
         for i = 1, #allObjects do
             if not isEnabled then break end
-            local obj = allObjects[i]
-            optimize(obj)
+            optimize(allObjects[i])
             if i % batchSize == 0 then
                 task.wait()
             end
@@ -200,8 +208,6 @@ UltraFastButton.MouseButton1Click:Connect(function()
                         part.Transparency = data.Trans
                     elseif part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Beam") or part:IsA("Fire") or part:IsA("Smoke") or part:IsA("Sparkles") or part:IsA("Light") then
                         part.Enabled = data.Enabled
-                    elseif part:IsA("Sound") then
-                        part.Volume = data.Vol
                     elseif part:IsA("PostEffect") or part:IsA("Atmosphere") or part:IsA("Clouds") or part:IsA("Sky") then
                         part.Parent = data.Parent
                     elseif part ~= Lighting then
