@@ -14,7 +14,7 @@ pcall(function()
     ScreenGui.ResetOnSpawn = false
 end)
 
-MainFrame.Name = "SupremeFPS_V193"
+MainFrame.Name = "SupremeFPS_V197"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
 MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
@@ -87,55 +87,72 @@ local function isJointOrPhysics(v)
     return false
 end
 
-local function makeClay(v, cleanMode)
-    if not v or isJointOrPhysics(v) then return end
+local function isBall(v)
+    local current = v
+    while current and current ~= workspace do
+        local name = string.lower(current.Name)
+        if string.find(name, "ball") or string.find(name, "vball") or string.find(name, "volleyball") then
+            return true
+        end
+        current = current.Parent
+    end
+    return false
+end
+
+local function applyHardcoreClay(v, cleanMode)
+    if not v or isJointOrPhysics(v) or isBall(v) then return end
     
     if cleanMode then
-        if v:IsA("SurfaceAppearance") or v:IsA("MaterialVariant") then
-            v:Destroy()
-        elseif v:IsA("BasePart") or v:IsA("MeshPart") then
-            if not originalData[v] then
-                originalData[v] = {Mat = v.Material, Shadow = v.CastShadow, Ref = v.Reflectance}
+        pcall(function()
+            if v:IsA("SurfaceAppearance") or v:IsA("MaterialVariant") then
+                if not originalData[v] then originalData[v] = {Parent = v.Parent} end
+                v.Parent = nil
+            elseif v:IsA("BasePart") or v:IsA("MeshPart") then
+                if not originalData[v] then
+                    originalData[v] = {Mat = v.Material, Shadow = v.CastShadow, Ref = v.Reflectance}
+                end
+                v.Material = Enum.Material.SmoothPlastic
+                v.CastShadow = false
+                v.Reflectance = 0
+                if v:IsA("MeshPart") then
+                    if not originalData[v].TextureId then originalData[v].TextureId = v.TextureId end
+                    pcall(function() v.TextureId = "" end)
+                end
+            elseif v:IsA("SpecialMesh") then
+                if not originalData[v] then originalData[v] = {TextureId = v.TextureId} end
+                pcall(function() v.TextureId = "" end)
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                if not originalData[v] then originalData[v] = {Texture = v.Texture, Trans = v.Transparency} end
+                v.Texture = ""
+                v.Transparency = 1
+            elseif v:IsA("ParticleEmitter") then
+                if not originalData[v] then originalData[v] = {Enabled = v.Enabled, Size = v.Size, Trans = v.Transparency} end
+                v.Enabled = false
+                v.Size = zeroSequence
+                v.Transparency = invisibleSequence
+            elseif v:IsA("Trail") or v:IsA("Beam") then
+                if not originalData[v] then originalData[v] = {Enabled = v.Enabled, Trans = v.Transparency} end
+                v.Enabled = false
+                v.Transparency = invisibleSequence
+            elseif v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") or v:IsA("Light") or v:IsA("Highlight") then
+                if not originalData[v] then originalData[v] = {Enabled = v.Enabled} end
+                v.Enabled = false
             end
-            v.Material = Enum.Material.SmoothPlastic
-            v.CastShadow = false
-            v.Reflectance = 0
-            if v:IsA("MeshPart") then
-                if not originalData[v].TextureId then originalData[v].TextureId = v.TextureId end
-                v.TextureId = "rbxassetid://0"
-            end
-        elseif v:IsA("SpecialMesh") then
-            if not originalData[v] then originalData[v] = {TextureId = v.TextureId} end
-            v.TextureId = "rbxassetid://0"
-        elseif v:IsA("Decal") or v:IsA("Texture") then
-            if not originalData[v] then originalData[v] = {Texture = v.Texture, Trans = v.Transparency} end
-            v.Texture = "rbxassetid://0"
-            v.Transparency = 1
-        elseif v:IsA("ParticleEmitter") then
-            if not originalData[v] then originalData[v] = {Enabled = v.Enabled, Size = v.Size, Trans = v.Transparency} end
-            v.Enabled = false
-            v.Size = zeroSequence
-            v.Transparency = invisibleSequence
-        elseif v:IsA("Trail") or v:IsA("Beam") then
-            if not originalData[v] then originalData[v] = {Enabled = v.Enabled, Trans = v.Transparency} end
-            v.Enabled = false
-            v.Transparency = invisibleSequence
-        elseif v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") or v:IsA("Light") or v:IsA("Highlight") then
-            if not originalData[v] then originalData[v] = {Enabled = v.Enabled} end
-            v.Enabled = false
-        end
+        end)
     else
         if originalData[v] then
             pcall(function()
-                if v:IsA("BasePart") or v:IsA("MeshPart") then
+                if v:IsA("SurfaceAppearance") or v:IsA("MaterialVariant") then
+                    v.Parent = originalData[v].Parent
+                elseif v:IsA("BasePart") or v:IsA("MeshPart") then
                     v.Material = originalData[v].Mat
                     v.CastShadow = originalData[v].Shadow
                     v.Reflectance = originalData[v].Ref
                     if v:IsA("MeshPart") and originalData[v].TextureId then
-                        v.TextureId = originalData[v].TextureId
+                        pcall(function() v.TextureId = originalData[v].TextureId end)
                     end
                 elseif v:IsA("SpecialMesh") then
-                    v.TextureId = originalData[v].TextureId
+                    pcall(function() v.TextureId = originalData[v].TextureId end)
                 elseif v:IsA("Decal") or v:IsA("Texture") then
                     v.Texture = originalData[v].Texture
                     v.Transparency = originalData[v].Trans
@@ -154,7 +171,7 @@ local function makeClay(v, cleanMode)
     end
 end
 
-local function instantBoost(state)
+local function clayBoost(state)
     if state then
         pcall(function()
             Lighting.GlobalShadows = false
@@ -165,11 +182,11 @@ local function instantBoost(state)
         
         local descendants = workspace:GetDescendants()
         for i = 1, #descendants do
-            makeClay(descendants[i], true)
+            applyHardcoreClay(descendants[i], true)
         end
         
         listenerConnection = workspace.DescendantAdded:Connect(function(child)
-            makeClay(child, true)
+            applyHardcoreClay(child, true)
         end)
     else
         if listenerConnection then
@@ -183,7 +200,7 @@ local function instantBoost(state)
         
         local descendants = workspace:GetDescendants()
         for i = 1, #descendants do
-            makeClay(descendants[i], false)
+            applyHardcoreClay(descendants[i], false)
         end
         
         originalData = {}
@@ -199,7 +216,7 @@ UltraFastButton.MouseButton1Click:Connect(function()
         UltraFastButton.TextColor3 = TextColor_On
         UltraFastStroke.Color = Color3.fromRGB(0, 255, 180)
         StatLabel.Visible = true
-        instantBoost(true)
+        clayBoost(true)
         task.spawn(function()
             collectgarbage("collect")
         end)
@@ -209,7 +226,7 @@ UltraFastButton.MouseButton1Click:Connect(function()
         UltraFastButton.TextColor3 = TextColor_Off
         UltraFastStroke.Color = Color3.fromRGB(50, 50, 60)
         StatLabel.Visible = false
-        instantBoost(false)
+        clayBoost(false)
     end
 end)
 
