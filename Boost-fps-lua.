@@ -14,7 +14,7 @@ pcall(function()
     ScreenGui.ResetOnSpawn = false
 end)
 
-StatLabel.Name = "SupremeStats_V224"
+StatLabel.Name = "SupremeStats_V225"
 StatLabel.Parent = ScreenGui
 StatLabel.BackgroundTransparency = 0.5
 StatLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -31,7 +31,7 @@ local StatCorner = Instance.new("UICorner")
 StatCorner.CornerRadius = UDim.new(0, 6)
 StatCorner.Parent = StatLabel
 
-MainFrame.Name = "SupremeFPS_V224"
+MainFrame.Name = "SupremeFPS_V225"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
 MainFrame.Position = UDim2.new(0, 10, 0, 50)
@@ -303,6 +303,32 @@ UIS.InputBegan:Connect(function(input, gpe)
     if not gpe and input.KeyCode == Enum.KeyCode.RightControl then
         MainFrame.Visible = not MainFrame.Visible
         StatLabel.Visible = not StatLabel.Visible
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.1) do
+        pcall(function()
+            local char = LP.Character
+            if char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    if hum.PlatformStand then hum.PlatformStand = false end
+                    if hum.Sit then hum.Sit = false end
+                end
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local vel = hrp.AssemblyLinearVelocity
+                    if vel.Magnitude > 75 then
+                        hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                    end
+                    local rotVel = hrp.AssemblyAngularVelocity
+                    if rotVel.Magnitude > 75 then
+                        hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                    end
+                end
+            end
+        end)
     end
 end)
 
