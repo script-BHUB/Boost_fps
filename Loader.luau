@@ -36,7 +36,7 @@ MainFrame.Name="MainFrame"
 MainFrame.Parent=ScreenGui
 MainFrame.BackgroundColor3=DarkBG
 MainFrame.Position=UDim2.new(0,15,0,90)
-MainFrame.Size=UDim2.new(0,200,0,260)
+MainFrame.Size=UDim2.new(0,200,0,56)
 MainFrame.Active=true
 local FrameCorner=Instance.new("UICorner")
 FrameCorner.CornerRadius=UDim.new(0,12)
@@ -46,44 +46,26 @@ FrameStroke.Color=DarkBorder
 FrameStroke.Transparency=0.1
 FrameStroke.Thickness=1.5
 FrameStroke.Parent=MainFrame
-local UIList=Instance.new("UIListLayout")
-UIList.Parent=MainFrame
-UIList.SortOrder=Enum.SortOrder.LayoutOrder
-UIList.Padding=UDim.new(0,6)
-UIList.HorizontalAlignment=Enum.HorizontalAlignment.Center
-local UIPadding=Instance.new("UIPadding")
-UIPadding.Parent=MainFrame
-UIPadding.PaddingTop=UDim.new(0,10)
-UIPadding.PaddingBottom=UDim.new(0,10)
-local function createButton(name,defaultText,layoutOrder)
-local btn=Instance.new("TextButton")
-btn.Name=name
-btn.Parent=MainFrame
-btn.Size=UDim2.new(1,-20,0,38)
-btn.BackgroundColor3=DarkButton
-btn.Font=Enum.Font.FredokaOne
-btn.Text=defaultText
-btn.TextColor3=Color3.fromRGB(180,180,190)
-btn.TextSize=11
-btn.AutoButtonColor=false
-btn.LayoutOrder=layoutOrder
-local btnCorner=Instance.new("UICorner")
-btnCorner.CornerRadius=UDim.new(0,8)
-btnCorner.Parent=btn
-local btnStroke=Instance.new("UIStroke")
-btnStroke.Color=DarkBorder
-btnStroke.Transparency=0.3
-btnStroke.Thickness=1.2
-btnStroke.Parent=btn
-return btn,btnStroke
-end
-local MasterBtn,MasterStroke=createButton("MasterBtn","Master FPS Boost: Off",1)
-local RenderBtn,RenderStroke=createButton("RenderBtn","3D Render (AFK): On",2)
-local CullingBtn,CullingStroke=createButton("CullingBtn","Distance Culling: Off",3)
-local MapCleanBtn,MapCleanStroke=createButton("MapCleanBtn","Remove Map Assets",4)
-local RamCleanBtn,RamCleanStroke=createButton("RamCleanBtn","Clean RAM Memory",5)
-local isMasterOn,isRenderOn,isCullingOn=false,true,false
-local originalData,connections={},{}
+local BoostBtn=Instance.new("TextButton")
+BoostBtn.Parent=MainFrame
+BoostBtn.Position=UDim2.new(0,8,0,8)
+BoostBtn.Size=UDim2.new(1,-16,1,-16)
+BoostBtn.BackgroundColor3=DarkButton
+BoostBtn.Font=Enum.Font.FredokaOne
+BoostBtn.Text="B Hub - Ultra Boost FPS: Off"
+BoostBtn.TextColor3=Color3.fromRGB(180,180,190)
+BoostBtn.TextSize=11
+BoostBtn.AutoButtonColor=false
+local BoostCorner=Instance.new("UICorner")
+BoostCorner.CornerRadius=UDim.new(0,8)
+BoostCorner.Parent=BoostBtn
+local BoostStroke=Instance.new("UIStroke")
+BoostStroke.Color=DarkBorder
+BoostStroke.Transparency=0.3
+BoostStroke.Thickness=1.2
+BoostStroke.Parent=BoostBtn
+local isEnabled=false
+local originalData={}
 local zeroSeq,invSeq=NumberSequence.new(0),NumberSequence.new(1)
 local function isExcluded(v)
 if not v or not v.Parent then return true end
@@ -136,13 +118,13 @@ end
 end
 end)
 end
-MasterBtn.MouseButton1Click:Connect(function()
-isMasterOn=not isMasterOn
+BoostBtn.MouseButton1Click:Connect(function()
+isEnabled=not isEnabled
 local tweenInfo=TweenInfo.new(0.15)
-if isMasterOn then
-MasterBtn.Text="Master FPS Boost: On"
-TweenService:Create(MasterBtn,tweenInfo,{BackgroundColor3=Color3.fromRGB(35,35,45),TextColor3=ActiveColor}):Play()
-TweenService:Create(MasterStroke,tweenInfo,{Color=ActiveColor,Transparency=0.2}):Play()
+if isEnabled then
+BoostBtn.Text="B Hub - Ultra Boost FPS: On"
+TweenService:Create(BoostBtn,tweenInfo,{BackgroundColor3=Color3.fromRGB(35,35,45),TextColor3=ActiveColor}):Play()
+TweenService:Create(BoostStroke,tweenInfo,{Color=ActiveColor,Transparency=0.2}):Play()
 pcall(function()
 Lighting.GlobalShadows,Lighting.FogEnd=false,9e9
 for _,effect in ipairs(Lighting:GetChildren()) do
@@ -152,85 +134,29 @@ end)
 task.spawn(function()
 local items=Workspace:GetDescendants()
 for i=1,#items do
-applyOptimization(items[i],true)
+local obj=items[i]
+applyOptimization(obj,true)
+if obj:IsA("Clouds") or obj:IsA("Atmosphere") or obj:IsA("PostEffect") then
+pcall(function() obj:Destroy() end)
+elseif obj:IsA("BasePart") then
+local name=obj.Name:lower()
+if name:find("leaf") or name:find("grass") or name:find("tree") or name:find("bush") then pcall(function() obj:Destroy() end) end
+end
 if i%500==0 then RunService.Heartbeat:Wait() end
 end
+collectgarbage("collect")
 end)
 else
-MasterBtn.Text="Master FPS Boost: Off"
-TweenService:Create(MasterBtn,tweenInfo,{BackgroundColor3=DarkButton,TextColor3=Color3.fromRGB(180,180,190)}):Play()
-TweenService:Create(MasterStroke,tweenInfo,{Color=DarkBorder,Transparency=0.3}):Play()
+BoostBtn.Text="B Hub - Ultra Boost FPS: Off"
+TweenService:Create(BoostBtn,tweenInfo,{BackgroundColor3=DarkButton,TextColor3=Color3.fromRGB(180,180,190)}):Play()
+TweenService:Create(BoostStroke,tweenInfo,{Color=DarkBorder,Transparency=0.3}):Play()
 pcall(function() Lighting.GlobalShadows=true end)
 task.spawn(function()
 for v,_ in pairs(originalData) do applyOptimization(v,false) end
 originalData={}
-end)
-end
-end)
-RenderBtn.MouseButton1Click:Connect(function()
-isRenderOn=not isRenderOn
-local tweenInfo=TweenInfo.new(0.15)
-RunService:Set3dRenderingEnabled(isRenderOn)
-if isRenderOn then
-RenderBtn.Text="3D Render (AFK): On"
-TweenService:Create(RenderBtn,tweenInfo,{BackgroundColor3=DarkButton,TextColor3=Color3.fromRGB(180,180,190)}):Play()
-TweenService:Create(RenderStroke,tweenInfo,{Color=DarkBorder,Transparency=0.3}):Play()
-else
-RenderBtn.Text="3D Render (AFK): Off"
-TweenService:Create(RenderBtn,tweenInfo,{BackgroundColor3=Color3.fromRGB(35,35,45),TextColor3=ActiveColor}):Play()
-TweenService:Create(RenderStroke,tweenInfo,{Color=ActiveColor,Transparency=0.2}):Play()
-end
-end)
-CullingBtn.MouseButton1Click:Connect(function()
-isCullingOn=not isCullingOn
-local tweenInfo=TweenInfo.new(0.15)
-if isCullingOn then
-CullingBtn.Text="Distance Culling: On"
-TweenService:Create(CullingBtn,tweenInfo,{BackgroundColor3=Color3.fromRGB(35,35,45),TextColor3=ActiveColor}):Play()
-TweenService:Create(CullingStroke,tweenInfo,{Color=ActiveColor,Transparency=0.2}):Play()
-local cullingConn=RunService.Heartbeat:Connect(function()
-local char=LP.Character
-if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-local hrpPos=char.HumanoidRootPart.Position
-for _,obj in ipairs(Workspace:GetDescendants()) do
-if obj:IsA("BasePart") and not obj:IsDescendantOf(char) then
-local dist=(obj.Position-hrpPos).Magnitude
-if dist>150 then obj.LocalTransparencyModifier=1 else obj.LocalTransparencyModifier=0 end
-end
-end
-end)
-table.insert(connections,cullingConn)
-else
-CullingBtn.Text="Distance Culling: Off"
-TweenService:Create(CullingBtn,tweenInfo,{BackgroundColor3=DarkButton,TextColor3=Color3.fromRGB(180,180,190)}):Play()
-TweenService:Create(CullingStroke,tweenInfo,{Color=DarkBorder,Transparency=0.3}):Play()
-for _,conn in ipairs(connections) do conn:Disconnect() end
-connections={}
-for _,obj in ipairs(Workspace:GetDescendants()) do
-if obj:IsA("BasePart") then obj.LocalTransparencyModifier=0 end
-end
-end
-end)
-MapCleanBtn.MouseButton1Click:Connect(function()
-local tweenInfo=TweenInfo.new(0.15)
-TweenService:Create(MapCleanBtn,tweenInfo,{BackgroundColor3=Color3.fromRGB(35,35,45),TextColor3=ActiveColor}):Play()
-for _,obj in ipairs(Workspace:GetDescendants()) do
-if obj:IsA("Clouds") or obj:IsA("Atmosphere") or obj:IsA("PostEffect") then
-obj:Destroy()
-elseif obj:IsA("BasePart") then
-local name=obj.Name:lower()
-if name:find("leaf") or name:find("grass") or name:find("tree") or name:find("bush") then obj:Destroy() end
-end
-end
-task.wait(0.3)
-TweenService:Create(MapCleanBtn,tweenInfo,{BackgroundColor3=DarkButton,TextColor3=Color3.fromRGB(180,180,190)}):Play()
-end)
-RamCleanBtn.MouseButton1Click:Connect(function()
-local tweenInfo=TweenInfo.new(0.15)
-TweenService:Create(RamCleanBtn,tweenInfo,{BackgroundColor3=Color3.fromRGB(35,35,45),TextColor3=ActiveColor}):Play()
 collectgarbage("collect")
-task.wait(0.3)
-TweenService:Create(RamCleanBtn,tweenInfo,{BackgroundColor3=DarkButton,TextColor3=Color3.fromRGB(180,180,190)}):Play()
+end)
+end
 end)
 UIS.InputBegan:Connect(function(input,gpe)
 if not gpe and input.KeyCode==Enum.KeyCode.RightControl then
